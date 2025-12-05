@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb; 
 import 'login_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -100,6 +102,46 @@ class _SignUpScreenState extends State<SignUpScreen> {
         duration: const Duration(seconds: 3),
       ),
     );
+  }
+
+
+  Future<void> _handleGoogleSignIn() async {
+    if (_isLoading) return;
+    FocusScope.of(context).unfocus();
+
+    setState(() => _isLoading = true);
+
+    try {
+      final GoogleAuthProvider googleProvider = GoogleAuthProvider();
+      UserCredential userCredential;
+
+      if (kIsWeb) {
+        // --- CORE LOGIC: signInWithPopup for Web ---
+        debugPrint("Attempting Google Sign-In with Popup (Web)");
+        userCredential = await FirebaseAuth.instance.signInWithPopup(googleProvider);
+      } else {
+        // Fallback for non-web platforms (e.g., mobile)
+        throw UnsupportedError("Google Sign-In with Popup is only supported on the web in this example.");
+      }
+
+      debugPrint("Google Sign-Up Successful for user: ${userCredential.user?.email}");
+      if (mounted) {
+        _showSnackBar("Signed up with Google! 🎉", isError: false);
+        
+      }
+
+     } on UnsupportedError catch (e) {
+        _showSnackBar(e.message ?? "Non-web login not implemented.", isError: true);
+      } catch (e) {
+        // Handle all Firebase errors here
+          if (!e.toString().contains('popup-closed-by-user')) {
+            _showSnackBar("Google Sign-Up Failed: ${e.toString()}", isError: true);
+          }
+        } finally {
+          if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -341,7 +383,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       child: _buildSocialButton(
                         label: "Google",
                         icon: Icons.g_mobiledata,
-                        onTap: () => debugPrint("Google Sign Up"),
+                        onTap: _isLoading ? null : _handleGoogleSignIn,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -415,12 +457,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  // ويدجت لأزرار Social Login
+  // >>> New Widget to work with the google sign in functionality:
+
   Widget _buildSocialButton({
     required String label,
     required IconData icon,
-    required VoidCallback onTap,
+    VoidCallback? onTap, 
   }) {
+    // If onTap is null (because _isLoading is true), the button is disabled.
     return OutlinedButton(
       onPressed: onTap,
       style: OutlinedButton.styleFrom(
@@ -433,12 +477,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 24, color: Colors.black87),
+          Icon(
+            icon,
+            size: 24,
+            color: onTap == null ? Colors.grey : Colors.black87, // Greys out icon if disabled
+          ),
           const SizedBox(width: 8),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.black87,
+            style: TextStyle(
+              color: onTap == null ? Colors.grey : Colors.black87, // Greys out text if disabled
               fontWeight: FontWeight.w600,
             ),
           ),

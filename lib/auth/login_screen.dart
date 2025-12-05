@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb; 
 import 'package:flutter/services.dart';
 import 'signup_screen.dart';
 
@@ -17,7 +19,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final FocusNode _passwordFocus = FocusNode();
-
   @override
   void dispose() {
     _emailController.dispose();
@@ -46,6 +47,43 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       _showSnackBar("Invalid email or password", isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    if (_isLoading) return;
+    FocusScope.of(context).unfocus();
+
+    setState(() => _isLoading = true);
+
+    try {
+      final GoogleAuthProvider googleProvider = GoogleAuthProvider();
+      UserCredential userCredential;
+
+      if (kIsWeb) {
+        // --- CORRECT WEB METHOD: signInWithPopup ---
+        debugPrint("Attempting Google Sign-In with Popup (Web)");
+        userCredential = await FirebaseAuth.instance.signInWithPopup(googleProvider);
+      } else {
+        // Throwing an error for non-web platforms (requires different setup)
+        throw UnsupportedError("Google Sign-In with Popup is only supported on the web in this example.");
+      }
+
+      debugPrint("Google Sign-In Successful for user: ${userCredential.user?.email}");
+      if (mounted) {
+        _showSnackBar("Signed in with Google! 🎉", isError: false);
+      }
+  } on UnsupportedError catch (e) {
+    _showSnackBar(e.message ?? "Non-web login not implemented.", isError: true);
+    } catch (e) {
+      // Handle all Firebase errors here
+      if (!e.toString().contains('popup-closed-by-user')) {
+        _showSnackBar("Google Sign-In Failed: ${e.toString()}", isError: true);
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -212,7 +250,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: _buildSocialButton(
                         label: "Google",
                         icon: Icons.g_mobiledata,
-                        onTap: () {},
+                        onTap: _isLoading ? null : _handleGoogleSignIn,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -309,7 +347,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildSocialButton({
     required String label,
     required IconData icon,
-    required VoidCallback onTap,
+    VoidCallback? onTap, 
   }) {
     return OutlinedButton(
       onPressed: onTap,
@@ -323,19 +361,23 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 24, color: Colors.black87),
+          Icon(
+            icon,
+            size: 24,
+            color: onTap == null ? Colors.grey : Colors.black87, // Greys out icon if disabled
+          ),
           const SizedBox(width: 8),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.black87,
+            style: TextStyle(
+              color: onTap == null ? Colors.grey : Colors.black87, // Greys out text if disabled
               fontWeight: FontWeight.w600,
             ),
           ),
         ],
       ),
     );
-  }
+  } 
 }
 /*
 import 'package:flutter/material.dart';

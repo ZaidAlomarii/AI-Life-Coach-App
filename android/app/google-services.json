@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "1049747017042",
+    "project_id": "ai-life-coach-5c113",
+    "storage_bucket": "ai-life-coach-5c113.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1049747017042:android:e449a60231dd38df97fe8b",
+        "android_client_info": {
+          "package_name": "com.example.ai_life_coach"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1049747017042-364a7b208fk82e2fkul4m9ana6gsjhcs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCGQT5CKGNxaSKsGvfo-a0TdfIpTazfaPc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1049747017042-364a7b208fk82e2fkul4m9ana6gsjhcs.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1049747017042-8fc2s4mkprote3v15n0h83e4lfhfhv8g.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.aiLifeCoach"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
