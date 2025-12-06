@@ -52,44 +52,78 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool get _hasUpperCase => _passwordController.text.contains(RegExp(r'[A-Z]'));
   bool get _hasSpecialChar => _passwordController.text.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
 
-  // دالة التسجيل
-  Future<void> _handleSignUp() async {
-    // إغلاق الكيبورد
-    FocusScope.of(context).unfocus();
 
-    if (!_formKey.currentState!.validate()) {
-      return;
+
+// Firebase Signup
+Future<void> _handleSignUp() async {
+  FocusScope.of(context).unfocus();
+
+  if (!_formKey.currentState!.validate()) {
+    return;
+  }
+
+  if (!_acceptTerms) {
+    _showSnackBar("Please accept the Terms & Conditions", isError: true);
+    return;
+  }
+
+  setState(() => _isLoading = true);
+
+  try {
+    // Firebase Signup not a simulation
+    UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+    );
+
+    // Update user display name
+    await userCredential.user?.updateDisplayName(_nameController.text.trim());
+    
+    // Send verification email
+    await userCredential.user?.sendEmailVerification();
+
+    debugPrint("Sign Up Successful!");
+    debugPrint("User ID: ${userCredential.user?.uid}");
+    debugPrint("Email: ${userCredential.user?.email}");
+    debugPrint("Display Name: ${userCredential.user?.displayName}");
+    debugPrint("Email Verified: ${userCredential.user?.emailVerified}");
+
+    if (mounted) {
+      _showSnackBar("Account created successfully! Check your email for verification. 🎉", isError: false);
+      // Navigate to home or verification screen
+      // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomeScreen()));
     }
-
-    if (!_acceptTerms) {
-      _showSnackBar("Please accept the Terms & Conditions", isError: true);
-      return;
+  } on FirebaseAuthException catch (e) {
+    String errorMessage;
+    switch (e.code) {
+      case 'weak-password':
+        errorMessage = 'The password provided is too weak.';
+        break;
+      case 'email-already-in-use':
+        errorMessage = 'An account already exists for that email.';
+        break;
+      case 'invalid-email':
+        errorMessage = 'The email address is not valid.';
+        break;
+      case 'operation-not-allowed':
+        errorMessage = 'Email/password accounts are not enabled.';
+        break;
+      default:
+        errorMessage = 'An error occurred: ${e.message}';
     }
-
-    setState(() => _isLoading = true);
-
-    try {
-      // محاكاة عملية التسجيل
-      await Future.delayed(const Duration(seconds: 2));
-
-      debugPrint("Sign Up Successful!");
-      debugPrint("Name: ${_nameController.text.trim()}");
-      debugPrint("Email: ${_emailController.text.trim()}");
-
-      // عرض رسالة نجاح
-      if (mounted) {
-        _showSnackBar("Account created successfully! 🎉", isError: false);
-        // هنا يمكن الانتقال للشاشة التالية
-        // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomeScreen()));
-      }
-    } catch (e) {
-      _showSnackBar("Something went wrong. Please try again.", isError: true);
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    _showSnackBar(errorMessage, isError: true);
+  } catch (e) {
+    _showSnackBar("Something went wrong. Please try again.", isError: true);
+    debugPrint("Signup error: $e");
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
+
+
+
 
   // دالة لعرض SnackBar
   void _showSnackBar(String message, {required bool isError}) {

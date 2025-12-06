@@ -27,32 +27,67 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
-    FocusScope.of(context).unfocus();
 
-    if (!_formKey.currentState!.validate()) {
-      return;
+// Firebase Login not a simulation
+Future<void> _handleLogin() async {
+  FocusScope.of(context).unfocus();
+
+  if (!_formKey.currentState!.validate()) {
+    return;
+  }
+
+  setState(() => _isLoading = true);
+
+  try {
+    // Firebase Login
+    UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+    );
+
+    debugPrint("✅ REAL Login Successful!");
+    debugPrint("User ID: ${userCredential.user?.uid}");
+    debugPrint("Email: ${userCredential.user?.email}");
+    debugPrint("Email Verified: ${userCredential.user?.emailVerified}");
+
+    if (mounted) {
+      _showSnackBar("Welcome back! 👋", isError: false);
+      // Navigate to home screen
+      // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomeScreen()));
     }
-
-    setState(() => _isLoading = true);
-
-    try {
-      await Future.delayed(const Duration(seconds: 2));
-
-      debugPrint("Login Successful!");
-      debugPrint("Email: ${_emailController.text.trim()}");
-
-      if (mounted) {
-        _showSnackBar("Welcome back! 👋", isError: false);
-      }
-    } catch (e) {
-      _showSnackBar("Invalid email or password", isError: true);
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+  } on FirebaseAuthException catch (e) {
+    String errorMessage;
+    switch (e.code) {
+      case 'user-not-found':
+        errorMessage = 'No user found with this email.';
+        break;
+      case 'wrong-password':
+        errorMessage = 'Incorrect password.';
+        break;
+      case 'invalid-email':
+        errorMessage = 'The email address is not valid.';
+        break;
+      case 'user-disabled':
+        errorMessage = 'This account has been disabled.';
+        break;
+      case 'too-many-requests':
+        errorMessage = 'Too many attempts. Try again later.';
+        break;
+      default:
+        errorMessage = 'An error occurred: ${e.message}';
+    }
+    _showSnackBar(errorMessage, isError: true);
+  } catch (e) {
+    _showSnackBar("Login failed. Please try again.", isError: true);
+    debugPrint("Login error: $e");
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
+
+
 
   Future<void> _handleGoogleSignIn() async {
     if (_isLoading) return;
