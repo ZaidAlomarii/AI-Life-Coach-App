@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb; 
 import 'login_screen.dart';
+import 'package:google_sign_in/google_sign_in.dart'
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -91,7 +92,6 @@ Future<void> _handleSignUp() async {
     if (mounted) {
       _showSnackBar("Account created successfully! Check your email for verification. 🎉", isError: false);
       // Navigate to home or verification screen
-      // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomeScreen()));
     }
   } on FirebaseAuthException catch (e) {
     String errorMessage;
@@ -139,40 +139,61 @@ Future<void> _handleSignUp() async {
   }
 
 
-  Future<void> _handleGoogleSignIn() async {
-    if (_isLoading) return;
-    FocusScope.of(context).unfocus();
+   Future<void> _handleGoogleSignIn() async {
+  if (_isLoading) return;
+  FocusScope.of(context).unfocus();
 
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
 
-    try {
+  try {
+    UserCredential userCredential;
+
+    if (kIsWeb) {
+      // WEB: Use popup method
+      debugPrint("Attempting Google Sign-In with Popup (Web)");
       final GoogleAuthProvider googleProvider = GoogleAuthProvider();
-      UserCredential userCredential;
+      userCredential = await FirebaseAuth.instance.signInWithPopup(googleProvider);
+    } else {
+      // MOBILE (Android/iOS): Use google_sign_in package
+      debugPrint("Attempting Google Sign-In (Mobile)");
+      
+      final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email']);
 
-      if (kIsWeb) {
-        // --- CORE LOGIC: signInWithPopup for Web ---
-        debugPrint("Attempting Google Sign-In with Popup (Web)");
-        userCredential = await FirebaseAuth.instance.signInWithPopup(googleProvider);
-      } else {
-        // Fallback for non-web platforms (e.g., mobile)
-        throw UnsupportedError("Google Sign-In with Popup is only supported on the web in this example.");
+      // Trigger the authentication flow
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        // User cancelled the sign-in
+        debugPrint("Google Sign-In cancelled by user");
+        if (mounted) setState(() => _isLoading = false);
+        return;
       }
 
-      debugPrint("Google Sign-Up Successful for user: ${userCredential.user?.email}");
+      // Obtain the auth details from the request
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // Create a new credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in to Firebase with the Google credential
+      userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+    }
+
+    debugPrint("Google Sign-In Successful for user: ${userCredential.user?.email}");
+    if (mounted) {
+      _showSnackBar("Signed in with Google! 🎉", isError: false);
+    }
+  } catch (e) {
+    debugPrint("Google Sign-In error: $e");
+    if (!e.toString().contains('popup-closed-by-user') && 
+        !e.toString().contains('sign_in_canceled')) {
+      _showSnackBar("Google Sign-In Failed: ${e.toString()}", isError: true);
+    }
+  } finally {
       if (mounted) {
-        _showSnackBar("Signed up with Google! 🎉", isError: false);
-        
-      }
-
-     } on UnsupportedError catch (e) {
-        _showSnackBar(e.message ?? "Non-web login not implemented.", isError: true);
-      } catch (e) {
-        // Handle all Firebase errors here
-          if (!e.toString().contains('popup-closed-by-user')) {
-            _showSnackBar("Google Sign-Up Failed: ${e.toString()}", isError: true);
-          }
-        } finally {
-          if (mounted) {
         setState(() => _isLoading = false);
       }
     }
