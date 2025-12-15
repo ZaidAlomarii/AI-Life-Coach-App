@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb; 
 import 'package:flutter/services.dart';
 import 'signup_screen.dart';
-import 'package:google_sign_in/google_sign_in.dart'
+import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
