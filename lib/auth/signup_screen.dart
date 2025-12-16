@@ -4,6 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb; 
 import 'login_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'dart:math';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -53,7 +57,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool get _hasUpperCase => _passwordController.text.contains(RegExp(r'[A-Z]'));
   bool get _hasSpecialChar => _passwordController.text.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
 
+  // Generate random nonce for security
+String _generateNonce([int length = 32]) {
+  const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+  final random = Random.secure();
+  return List.generate(length, (_) => charset[random.nextInt(charset.length)]).join();
+}
 
+// Hash the nonce
+String _sha256ofString(String input) {
+  final bytes = utf8.encode(input);
+  final digest = sha256.convert(bytes);
+  return digest.toString();
+}
 
 // Firebase Signup
 Future<void> _handleSignUp() async {
@@ -191,6 +207,81 @@ Future<void> _handleSignUp() async {
     if (!e.toString().contains('popup-closed-by-user') && 
         !e.toString().contains('sign_in_canceled')) {
       _showSnackBar("Google Sign-In Failed: ${e.toString()}", isError: true);
+    }
+  } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _handleAppleSignIn() async {
+  if (_isLoading) return;
+  FocusScope.of(context).unfocus();
+
+  setState(() => _isLoading = true);
+
+  try {
+    UserCredential userCredential;
+
+    if (kIsWeb) {
+      // WEB: Use Firebase popup method
+      debugPrint("Attempting Apple Sign-In with Popup (Web)");
+      final appleProvider = OAuthProvider('apple.com');
+      appleProvider.addScope('email');
+      appleProvider.addScope('name');
+      userCredential = await FirebaseAuth.instance.signInWithPopup(appleProvider);
+    } else {
+      // MOBILE: Use sign_in_with_apple package
+      debugPrint("Attempting Apple Sign-In (Mobile)");
+
+      // Generate nonce for security
+      final rawNonce = _generateNonce();
+      final nonce = _sha256ofString(rawNonce);
+
+      // Request Apple Sign-In
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: nonce,
+      );
+
+      // Create OAuth credential
+      final oauthCredential = OAuthProvider("apple.com").credential(
+        idToken: appleCredential.identityToken,
+        rawNonce: rawNonce,
+      );
+
+      // Sign in to Firebase
+      userCredential = await FirebaseAuth.instance.signInWithCredential(oauthCredential);
+
+      // Update display name if available (Apple only provides this on first sign-in)
+      if (appleCredential.givenName != null || appleCredential.familyName != null) {
+        final displayName = '${appleCredential.givenName ?? ''} ${appleCredential.familyName ?? ''}'.trim();
+        if (displayName.isNotEmpty) {
+          await userCredential.user?.updateDisplayName(displayName);
+        }
+      }
+    }
+
+    debugPrint("Apple Sign-In Successful for user: ${userCredential.user?.email}");
+    if (mounted) {
+      _showSnackBar("Signed in with Apple! 🍎", isError: false);
+    }
+  } on SignInWithAppleAuthorizationException catch (e) {
+    debugPrint("Apple Sign-In Authorization Error: ${e.code} - ${e.message}");
+    if (e.code != AuthorizationErrorCode.canceled) {
+      _showSnackBar("Apple Sign-In failed: ${e.message}", isError: true);
+    }
+  } on FirebaseAuthException catch (e) {
+    debugPrint("Firebase Auth Error: ${e.code} - ${e.message}");
+    _showSnackBar("Authentication failed: ${e.message}", isError: true);
+  } catch (e) {
+    debugPrint("Apple Sign-In error: $e");
+    if (!e.toString().contains('popup-closed-by-user')) {
+      _showSnackBar("Apple Sign-In Failed: ${e.toString()}", isError: true);
     }
   } finally {
       if (mounted) {
@@ -446,7 +537,7 @@ Future<void> _handleSignUp() async {
                       child: _buildSocialButton(
                         label: "Apple",
                         icon: Icons.apple,
-                        onTap: () => debugPrint("Apple Sign Up"),
+                        onTap: _isLoading ? null : _handleAppleSignIn,
                       ),
                     ),
                   ],
