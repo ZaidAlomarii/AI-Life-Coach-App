@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "1049747017042-p9i3sn9bdvtbidpnhbsf8vrpnu0o795g.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.ai_life_coach",
+            "certificate_hash": "ff198728ca507795a8c7d1121aea33aaeddd425e"
+          }
+        },
+        {
           "client_id": "1049747017042-364a7b208fk82e2fkul4m9ana6gsjhcs.apps.googleusercontent.com",
           "client_type": 3
         }

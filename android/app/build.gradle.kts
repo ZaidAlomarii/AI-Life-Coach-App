@@ -33,7 +33,7 @@ android {
         applicationId = "com.example.ai_life_coach"
         
         // 👇 (2) تم تعديل الحد الأدنى لنسخة الأندرويد ليتوافق مع Firebase
-        minSdk = 23
+        minSdk = flutter.minSdkVersion
         
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

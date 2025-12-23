@@ -8,7 +8,7 @@ import 'package:crypto/crypto.dart';
 
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-
+  static const String _webClientId = '1049747017042-364a7b208fk82e2fkul4m9ana6gsjhcs.apps.googleusercontent.com';
   static User? get currentUser => _auth.currentUser;
   static Stream<User?> get authStateChanges => _auth.authStateChanges();
 
@@ -81,7 +81,7 @@ class AuthService {
         final GoogleAuthProvider googleProvider = GoogleAuthProvider();
         userCredential = await _auth.signInWithPopup(googleProvider);
       } else {
-        final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email']);
+        final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email'], serverClientId: _webClientId,);
         final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
         if (googleUser == null) {
